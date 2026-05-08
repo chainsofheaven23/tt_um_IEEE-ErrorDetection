@@ -1,27 +1,77 @@
-/*
- * Copyright (c) 2024 Your Name
- * SPDX-License-Identifier: Apache-2.0
- */
+# SPDX-FileCopyrightText: © 2024 Tiny Tapeout
+# SPDX-License-Identifier: Apache-2.0
 
-`default_nettype none
+# SPDX-FileCopyrightText: © 2024 Tiny Tapeout
+# SPDX-License-Identifier: Apache-2.0
 
-module tt_um_example (
-    input  wire [7:0] ui_in,    // Dedicated inputs
-    output wire [7:0] uo_out,   // Dedicated outputs
-    input  wire [7:0] uio_in,   // IOs: Input path
-    output wire [7:0] uio_out,  // IOs: Output path
-    output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
-    input  wire       ena,      // always 1 when the design is powered, so you can ignore it
-    input  wire       clk,      // clock
-    input  wire       rst_n     // reset_n - low to reset
-);
+# SPDX-FileCopyrightText: © 2024 Tiny Tapeout
+# SPDX-License-Identifier: Apache-2.0
 
-  // All output pins must be assigned. If not used, assign to 0.
-  assign uo_out  = ui_in + uio_in;  // Example: ou_out is the sum of ui_in and uio_in
-  assign uio_out = 0;
-  assign uio_oe  = 0;
+# SPDX-FileCopyrightText: © 2024 Tiny Tapeout
+# SPDX-License-Identifier: Apache-2.0
 
-  // List all unused inputs to prevent warnings
-  wire _unused = &{ena, clk, rst_n, 1'b0};
+# SPDX-FileCopyrightText: © 2024 Tiny Tapeout
+# SPDX-License-Identifier: Apache-2.0
 
-endmodule
+import cocotb
+from cocotb.clock import Clock
+from cocotb.triggers import Timer, ClockCycles
+
+
+@cocotb.test()
+async def test_project(dut):
+
+    # Start clock
+    clock = Clock(dut.clk, 20, unit="ns")
+    cocotb.start_soon(clock.start())
+
+    # Reset + initialize signals
+    dut.ena.value = 1
+    dut.rst_n.value = 0
+
+    dut.ui_in.value = 0
+
+    # Important for GL sim
+    dut.uio_in.value = 0
+    dut.uio_oe.value = 0xFF
+
+    await ClockCycles(dut.clk, 5)
+
+    dut.rst_n.value = 1
+
+    await ClockCycles(dut.clk, 5)
+
+    # ---------------- TEST 1 ----------------
+    dut.ui_in.value = 0xAC
+    dut.uio_in.value = 0b00000000
+
+    await Timer(20, units="ns")
+
+    dut._log.info(f"TEST1 Output = {dut.uo_out.value}")
+
+    assert "x" not in str(dut.uo_out.value).lower()
+    assert "z" not in str(dut.uo_out.value).lower()
+
+    # ---------------- TEST 2 ----------------
+    dut.ui_in.value = 0x55
+    dut.uio_in.value = 0b00000001
+
+    await Timer(20, units="ns")
+
+    dut._log.info(f"TEST2 Output = {dut.uo_out.value}")
+
+    assert "x" not in str(dut.uo_out.value).lower()
+    assert "z" not in str(dut.uo_out.value).lower()
+
+    # ---------------- TEST 3 ----------------
+    dut.ui_in.value = 0xF0
+    dut.uio_in.value = 0b00000010
+
+    await Timer(20, units="ns")
+
+    dut._log.info(f"TEST3 Output = {dut.uo_out.value}")
+
+    assert "x" not in str(dut.uo_out.value).lower()
+    assert "z" not in str(dut.uo_out.value).lower()
+
+    dut._log.info("Simple GL test passed")
